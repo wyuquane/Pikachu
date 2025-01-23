@@ -84,7 +84,7 @@ def main():
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
-    pygame.display.set_caption('Pikachu in Dota 1 style')
+    pygame.display.set_caption('Pikachu')
     BASICFONT = pygame.font.SysFont('comicsansms', 70)
     LIVESFONT = pygame.font.SysFont('comicsansms', 45)
 
@@ -93,13 +93,16 @@ def main():
         random.shuffle(listMusicBG)
         LEVEL = 1
         showStartScreen()
-        while LEVEL <= LEVELMAX:
-            runGame()
-            LEVEL += 1
-            pygame.time.wait(1000)
-        showGameOverScreen()
+
 
 def showStartScreen():
+    pygame.init()
+    FPSCLOCK = pygame.time.Clock()
+    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+    pygame.display.set_caption('Pikachu')
+    BASICFONT = pygame.font.SysFont('comicsansms', 70)
+    LIVESFONT = pygame.font.SysFont('comicsansms', 45)
+
     startScreenSound.play()
     while True:
         DISPLAYSURF.blit(startBG, (0, 0))
@@ -132,24 +135,21 @@ def showStartScreen():
                 mousex, mousey = event.pos
                 if login_rect.collidepoint((mousex, mousey)):
                     pygame.quit()
-                    game_login()
-
+                    login()
                 elif register_rect.collidepoint((mousex, mousey)):
                     pygame.quit()
-                    game_signup()
+                    register()
                 elif leaderboard_rect.collidepoint((mousex, mousey)):
                     pass
 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
 
-
-
-def game_signup(screen_width=800, screen_height=600):
+def register(screen_width=800, screen_height=600):
     pygame.init()
 
     screen = pygame.display.set_mode((screen_width, screen_height))
-    pygame.display.set_caption("Game Signup")
+    pygame.display.set_caption("Game Register")
     font = pygame.font.SysFont(None, 48)
 
     database = open('user_data.json', 'r')
@@ -244,7 +244,7 @@ def game_signup(screen_width=800, screen_height=600):
         txt_surface_password = font.render("Password: " + '*' * len(password), True, color_password)
         txt_surface_confirm_password = font.render("Confirm: " + '*' * len(confirm_password), True,
                                                    color_confirm_password)
-        txt_surface_message = font.render(message, True, pygame.Color('red'))  # hiển thị thông báo
+        txt_surface_message = font.render(message, True, pygame.Color('red')) # hiển thị thông báo
         txt_surface_button = font.render("Sign Up", True, (255, 255, 255))
 
         width_username = max(300, txt_surface_username.get_width() + 10)
@@ -270,26 +270,33 @@ def game_signup(screen_width=800, screen_height=600):
 
     pygame.quit()
 
-
-def game_login(screen_width=800, screen_height=600):
+def login(screen_width=800, screen_height=600):
     pygame.init()
 
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Game Login")
     font = pygame.font.SysFont(None, 48)
 
-    def save_to_json(filename, data):
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=4)
+    database = open('user_data.json', 'r')
+    user_data = json.load(database)
+    database.close()
 
     username = ""
     password = ""
+    message = ""
 
-    input_active = False
-    input_box = pygame.Rect(screen_width // 3, screen_height // 2, 300, 50)
+    input_active_username = False
+    input_active_password = False
+
+    input_box_username = pygame.Rect(screen_width // 3, screen_height // 4, 300, 50)
+    input_box_password = pygame.Rect(screen_width // 3, screen_height // 3, 300, 50)
+    button_rect = pygame.Rect(screen_width // 2.5, screen_height // 1.7, 200, 50)  # Định nghĩa khung nút Đăng ký
+
     color_inactive = pygame.Color('lightskyblue3')
     color_active = pygame.Color('dodgerblue2')
-    color = color_inactive
+    color_username = color_inactive
+    color_password = color_inactive
+
 
     run = True
     while run:
@@ -297,40 +304,96 @@ def game_login(screen_width=800, screen_height=600):
             if event.type == pygame.QUIT:
                 run = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if input_box.collidepoint(event.pos):
-                    input_active = not input_active
+                if input_box_username.collidepoint(event.pos):
+                    input_active_username = not input_active_username
                 else:
-                    input_active = False
-                color = color_active if input_active else color_inactive
+                    input_active_username = False
+
+                if input_box_password.collidepoint(event.pos):
+                    input_active_password = not input_active_password
+                else:
+                    input_active_password = False
+
+
+                if button_rect.collidepoint(event.pos):
+                    if username not in user_data or user_data[username]['password'] != password:
+                        message = 'username or password is incorrect'
+                    else:
+                        level = user_data[username]['level']
+                        time_left = user_data[username]['time']
+                        board = user_data[username]['board']
+                        pygame.quit()
+                        runGame(level, time_left, board)
+
+
+                color_username = color_active if input_active_username else color_inactive
+                color_password = color_active if input_active_password else color_inactive
+
             if event.type == pygame.KEYDOWN:
-                if input_active:
+                if input_active_username:
                     if event.key == pygame.K_RETURN:
-                        user_info = {
-                            "username": username,
-                            "password": password
-                        }
-                        save_to_json("user_data.json", user_info)
-                        username = ""
-                        password = ""
+                        pass
                     elif event.key == pygame.K_BACKSPACE:
                         username = username[:-1]
                     else:
                         username += event.unicode
 
+                if input_active_password:
+                    if event.key == pygame.K_BACKSPACE:
+                        password = password[:-1]
+                    else:
+                        password += event.unicode
+
         screen.fill((30, 30, 30))
-        txt_surface = font.render(username, True, color)
-        width = max(300, txt_surface.get_width() + 10)
-        input_box.w = width
-        screen.blit(txt_surface, (input_box.x + 5, input_box.y + 5))
-        pygame.draw.rect(screen, color, input_box, 2)
+        txt_surface_username = font.render("Username: " + username, True, color_username)
+        txt_surface_password = font.render("Password: " + '*' * len(password), True, color_password)
+
+        txt_surface_message = font.render(message, True, pygame.Color('red')) # hiển thị thông báo
+        txt_surface_button = font.render("Login", True, (255, 255, 255))
+
+        width_username = max(300, txt_surface_username.get_width() + 10)
+        width_password = max(300, txt_surface_password.get_width() + 10)
+
+        input_box_username.w = width_username
+        input_box_password.w = width_password
+
+
+        screen.blit(txt_surface_username, (input_box_username.x + 5, input_box_username.y + 5))
+        screen.blit(txt_surface_password, (input_box_password.x + 5, input_box_password.y + 5))
+        screen.blit(txt_surface_message, (screen_width // 3, screen_height * 3 // 4))  # vị trí thông báo
+
+        pygame.draw.rect(screen, color_username, input_box_username, 2)
+        pygame.draw.rect(screen, color_password, input_box_password, 2)
+
+        pygame.draw.rect(screen, (0, 128, 0), button_rect)  # Vẽ khung nút Đăng ký
+        screen.blit(txt_surface_button, (button_rect.x + 35, button_rect.y + 10))  # Hiển thị chữ "Sign Up" trên nút
 
         pygame.display.flip()
 
     pygame.quit()
 
+def runGame(level, time_left, board):
+    pygame.init()
+    global GAMETIME, LEVEL, LIVES, TIMEBONUS, STARTTIME, DISPLAYSURF, LIVESFONT, BASICFONT
+    FPSCLOCK = pygame.time.Clock()
+    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+    pygame.display.set_caption('Pikachu')
+    BASICFONT = pygame.font.SysFont('comicsansms', 70)
+    LIVESFONT = pygame.font.SysFont('comicsansms', 45)
 
-def runGame():
-    mainBoard = getRandomizedBoard()
+    if level is None: level = LEVEL = 1
+    elif level > 5: showGameOverScreen()
+    else: LEVEL = level
+
+    if board is None:
+        mainBoard = getRandomizedBoard()
+    else:
+        mainBoard = board
+
+    if time_left is not None:
+        GAMETIME = time_left
+
+
     clickedBoxes = [] # stores the (x, y) of clicked boxes
     firstSelection = None # stores the (x, y) of the first box clicked
     mousex = 0 # used to store x coordinate of mouse event
@@ -338,7 +401,6 @@ def runGame():
     lastTimeGetPoint = time.time()
     hint = getHint(mainBoard)
 
-    global GAMETIME, LEVEL, LIVES, TIMEBONUS, STARTTIME
     STARTTIME = time.time()
     TIMEBONUS = 0
 
@@ -358,12 +420,13 @@ def runGame():
 
         if time.time() - STARTTIME > GAMETIME + TIMEBONUS:
             LEVEL = LEVELMAX + 1
-            return
+            break
         if time.time() - lastTimeGetPoint >= GETHINTTIME:
             drawHint(hint)
 
         for event in pygame.event.get():
-            if event.type == QUIT:
+
+            if event.type == QUIT: # if user quit the game, save it
                 pygame.quit()
                 sys.exit()
             elif event.type == MOUSEMOTION:
@@ -382,8 +445,7 @@ def runGame():
 
                     if isGameComplete(mainBoard):
                         drawBoard(mainBoard)
-                        pygame.display.update()
-                        return
+                        runGame(LEVEL + 1, None, None)
 
                     if not(mainBoard[boxy1][boxx1] != 0 and bfs(mainBoard, boxy1, boxx1, boxy2, boxx2)):
                         hint = getHint(mainBoard)
@@ -392,9 +454,7 @@ def runGame():
                             resetBoard(mainBoard)
                             LIVES += -1
                             if LIVES == 0:
-                                LEVEL = LEVELMAX + 1
-                                return
-
+                                showGameOverScreen()
                             hint = getHint(mainBoard)
 
         boxx, boxy = getBoxAtPixel(mousex, mousey)
@@ -449,7 +509,9 @@ def runGame():
 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
-    pygame.mixer.music.stop()
+
+    GAMETIME = 240
+    runGame(level + 1, None, None)
 
 def getRandomizedBoard():
     list_pokemons = list(range(1, len(HEROES_DICT) + 1))
@@ -728,7 +790,7 @@ def drawLives():
     DISPLAYSURF.blit(livesSurf, livesRect)
 
 if __name__ == '__main__':
-    main()
+    showStartScreen()
 
 
 
