@@ -8,9 +8,9 @@ FPS = 10
 WINDOWWIDTH = 1000
 WINDOWHEIGHT = 570
 BOXSIZE = 55
-BOARDWIDTH = 14
-BOARDHEIGHT = 9
-NUMHEROES_ONBOARD = 21
+BOARDWIDTH = 4
+BOARDHEIGHT = 4
+NUMHEROES_ONBOARD = 1
 NUMSAMEHEROES = 4
 TIMEBAR_LENGTH = 300
 TIMEBAR_WIDTH = 30
@@ -93,7 +93,6 @@ def main():
         random.shuffle(listMusicBG)
         LEVEL = 1
         showStartScreen()
-
 
 def showStartScreen():
     pygame.init()
@@ -374,7 +373,7 @@ def login(screen_width=800, screen_height=600):
 
 def runGame(level, time_left, board):
     pygame.init()
-    global GAMETIME, LEVEL, LIVES, TIMEBONUS, STARTTIME, DISPLAYSURF, LIVESFONT, BASICFONT
+    global GAMETIME, LEVEL, LIVES, TIMEBONUS, STARTTIME, LIVESFONT, BASICFONT
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
     pygame.display.set_caption('Pikachu')
@@ -382,7 +381,7 @@ def runGame(level, time_left, board):
     LIVESFONT = pygame.font.SysFont('comicsansms', 45)
 
     if level is None: level = LEVEL = 1
-    elif level > 5: showGameOverScreen()
+    elif level > 5: showGameOverScreen(DISPLAYSURF)
     else: LEVEL = level
 
     if board is None:
@@ -413,16 +412,16 @@ def runGame(level, time_left, board):
         mouseClicked = False
 
         DISPLAYSURF.blit(randomBG, (0, 0))
-        drawBoard(mainBoard)
-        drawClickedBox(mainBoard, clickedBoxes)
-        drawTimeBar()
-        drawLives()
+        drawBoard(mainBoard, DISPLAYSURF)
+        drawClickedBox(mainBoard, clickedBoxes, DISPLAYSURF)
+        drawTimeBar(DISPLAYSURF)
+        drawLives(DISPLAYSURF)
 
         if time.time() - STARTTIME > GAMETIME + TIMEBONUS:
             LEVEL = LEVELMAX + 1
             break
         if time.time() - lastTimeGetPoint >= GETHINTTIME:
-            drawHint(hint)
+            drawHint(hint, DISPLAYSURF)
 
         for event in pygame.event.get():
 
@@ -444,7 +443,7 @@ def runGame(level, time_left, board):
                     alterBoardWithLevel(mainBoard, boxy1, boxx1, boxy2, boxx2, LEVEL)
 
                     if isGameComplete(mainBoard):
-                        drawBoard(mainBoard)
+                        drawBoard(mainBoard, DISPLAYSURF)
                         runGame(LEVEL + 1, None, None)
 
                     if not(mainBoard[boxy1][boxx1] != 0 and bfs(mainBoard, boxy1, boxx1, boxy2, boxx2)):
@@ -454,19 +453,19 @@ def runGame(level, time_left, board):
                             resetBoard(mainBoard)
                             LIVES += -1
                             if LIVES == 0:
-                                showGameOverScreen()
+                                showGameOverScreen(DISPLAYSURF)
                             hint = getHint(mainBoard)
 
         boxx, boxy = getBoxAtPixel(mousex, mousey)
 
         if boxx != None and boxy != None and mainBoard[boxy][boxx] != 0:
             # The mouse is currently over a box
-            drawHighlightBox(mainBoard, boxx, boxy)
+            drawHighlightBox(mainBoard, boxx, boxy, DISPLAYSURF)
 
         if boxx != None and boxy != None and mainBoard[boxy][boxx] != 0 and mouseClicked == True:
             # The mouse is clicking on a box
             clickedBoxes.append((boxx, boxy))
-            drawClickedBox(mainBoard, clickedBoxes)
+            drawClickedBox(mainBoard, clickedBoxes, DISPLAYSURF)
             mouseClicked = False
 
             if firstSelection == None:
@@ -481,15 +480,14 @@ def runGame(level, time_left, board):
                     getPointSound.play()
                     mainBoard[firstSelection[1]][firstSelection[0]] = 0
                     mainBoard[boxy][boxx] = 0
-                    drawPath(mainBoard, path)
+                    drawPath(mainBoard, path, DISPLAYSURF)
                     TIMEBONUS += 1
                     lastTimeGetPoint = time.time()
                     alterBoardWithLevel(mainBoard, firstSelection[1], firstSelection[0], boxy, boxx, LEVEL)
 
                     if isGameComplete(mainBoard):
-                        drawBoard(mainBoard)
-                        pygame.display.update()
-                        return
+                        drawBoard(mainBoard, DISPLAYSURF)
+                        runGame(LEVEL + 1, None, None)
                     if not(mainBoard[hint[0][0]][hint[0][1]] != 0 and bfs(mainBoard, hint[0][0], hint[0][1], hint[1][0], hint[1][1])):
                         hint = getHint(mainBoard)
                         while not hint:
@@ -497,9 +495,7 @@ def runGame(level, time_left, board):
                             resetBoard(mainBoard)
                             LIVES += -1
                             if LIVES == 0:
-                                LEVEL = LEVELMAX + 1
-                                return
-
+                                showGameOverScreen(DISPLAYSURF)
                             hint = getHint(mainBoard)
                 else:
                     clickSound.play()
@@ -538,7 +534,7 @@ def getBoxAtPixel(x, y):
         return None, None
     return (x - XMARGIN) // BOXSIZE, (y - YMARGIN) // BOXSIZE
 
-def drawBoard(board):
+def drawBoard(board, DISPLAYSURF):
     for boxx in range(BOARDWIDTH):
         for boxy in range(BOARDHEIGHT):
             if board[boxy][boxx] != 0:
@@ -546,12 +542,12 @@ def drawBoard(board):
                 boxRect = pygame.Rect(left, top, BOXSIZE, BOXSIZE)
                 DISPLAYSURF.blit(HEROES_DICT[board[boxy][boxx]], boxRect)
 
-def drawHighlightBox(board, boxx, boxy):
+def drawHighlightBox(board, boxx, boxy, DISPLAYSURF):
     left, top = leftTopCoordsOfBox(boxx, boxy)
     pygame.draw.rect(DISPLAYSURF, HIGHLIGHTCOLOR, (left - 2, top - 2,
                                                    BOXSIZE + 4, BOXSIZE + 4), 2)
 
-def drawClickedBox(board, clickedBoxes):
+def drawClickedBox(board, clickedBoxes, DISPLAYSURF):
     for boxx, boxy in clickedBoxes:
         left, top = leftTopCoordsOfBox(boxx, boxy)
         boxRect = pygame.Rect(left, top, BOXSIZE, BOXSIZE)
@@ -626,7 +622,7 @@ def getCenterPos(pos): # pos is coordinate of a box in mainBoard
     left, top = leftTopCoordsOfBox(pos[1], pos[0])
     return tuple([left + BOXSIZE // 2, top + BOXSIZE // 2])
 
-def drawPath(board, path):
+def drawPath(board, path, DISPLAYSURF):
     for i in range(len(path) - 1):
         startPos = getCenterPos(path[i])
         endPos = getCenterPos(path[i + 1])
@@ -634,7 +630,7 @@ def drawPath(board, path):
     pygame.display.update()
     pygame.time.wait(300)
 
-def drawTimeBar():
+def drawTimeBar(DISPLAYSURF):
     progress = 1 - ((time.time() - STARTTIME - TIMEBONUS) / GAMETIME)
 
     pygame.draw.rect(DISPLAYSURF, borderColor, (barPos, barSize), 1)
@@ -642,7 +638,7 @@ def drawTimeBar():
     innerSize = ((barSize[0] - 4) * progress, barSize[1] - 4)
     pygame.draw.rect(DISPLAYSURF, barColor, (innerPos, innerSize))
 
-def showGameOverScreen():
+def showGameOverScreen(DISPLAYSURF):
     playAgainFont = pygame.font.Font('freesansbold.ttf', 50)
     playAgainSurf = playAgainFont.render('Play Again?', True, PURPLE)
     playAgainRect = playAgainSurf.get_rect()
@@ -678,7 +674,7 @@ def getHint(board):
                         return hint
     return []
 
-def drawHint(hint):
+def drawHint(hint, DISPLAYSURF):
     for boxy, boxx in hint:
         left, top = leftTopCoordsOfBox(boxx, boxy)
         pygame.draw.rect(DISPLAYSURF, GREEN, (left, top,
@@ -781,7 +777,7 @@ def alterBoardWithLevel(board, boxy1, boxx1, boxy2, boxx2, level):
 
     return board
 
-def drawLives():
+def drawLives(DISPLAYSURF):
     aegisRect = pygame.Rect(10, 10, BOXSIZE, BOXSIZE)
     DISPLAYSURF.blit(aegis, aegisRect)
     livesSurf = LIVESFONT.render(str(LIVES), True, WHITE)
