@@ -10,8 +10,8 @@ WINDOWHEIGHT = 570
 BOXSIZE = 55
 BOARDWIDTH = 4
 BOARDHEIGHT = 4
-NUMHEROES_ONBOARD = 1
 NUMSAMEHEROES = 4
+NUMHEROES_ONBOARD = (BOARDHEIGHT - 2) * (BOARDWIDTH - 2) // NUMSAMEHEROES
 TIMEBAR_LENGTH = 300
 TIMEBAR_WIDTH = 30
 LEVELMAX = 5
@@ -135,11 +135,15 @@ def showStartScreen():
                 if login_rect.collidepoint((mousex, mousey)):
                     pygame.quit()
                     login()
+                    return
                 elif register_rect.collidepoint((mousex, mousey)):
                     pygame.quit()
                     register()
+                    return
                 elif leaderboard_rect.collidepoint((mousex, mousey)):
-                    pass
+                    pygame.quit()
+                    leaderboard()
+                    return
 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
@@ -322,7 +326,7 @@ def login(screen_width=800, screen_height=600):
                         time_left = user_data[username]['time']
                         board = user_data[username]['board']
                         pygame.quit()
-                        runGame(level, time_left, board)
+                        runGame(username,level, time_left, board)
 
 
                 color_username = color_active if input_active_username else color_inactive
@@ -371,7 +375,118 @@ def login(screen_width=800, screen_height=600):
 
     pygame.quit()
 
-def runGame(level, time_left, board):
+def score(username):
+    database = open('user_data.json', 'r')
+    user_data = json.load(database)
+    level = user_data[username]['level']
+    board = user_data[username]['board']
+    if level is None:
+        return 0
+    height = len(board) - 2
+    width = len(board[0]) - 2
+    paired_item = 0
+    for i in range(1, height + 1):
+        for j in range(1, width + 1):
+            if board[i][j] == 0:
+                paired_item += 1
+    paired_item //= 2
+    result = ((level - 1) * height * width // 2 + paired_item) * 5
+    return result
+
+def update_leaderboard():
+    database = open('user_data.json', 'r')
+    user_data = json.load(database)
+    database.close()
+
+    leaderboard = dict()
+    for username in user_data:
+        leaderboard[username] = score(username)
+
+    get_score = lambda x: x[1]
+    leaderboard = dict(sorted(leaderboard.items(), key=get_score, reverse=True))
+
+    update = open('leaderboard.json', 'w')
+    json.dump(leaderboard, update, indent=4)
+    update.close()
+
+
+def display_leaderboard(screen, scores):
+    title_font = pygame.font.SysFont(None, 48)
+    content_font = pygame.font.SysFont(None, 36)
+    screen.fill(WHITE)
+
+    # Title
+    title_text = title_font.render("Leaderboard", True, BLACK)
+    screen.blit(title_text, (800 // 2 - title_text.get_width() // 2, 50))
+
+    # Table Headers
+    header_font = pygame.font.SysFont(None, 40)
+    headers = ["Rank", "Name", "Score"]
+    header_y = 150
+    column_widths = [100, 400, 200]
+
+    for idx, header in enumerate(headers):
+        header_text = header_font.render(header, True, WHITE)
+        header_x = sum(column_widths[:idx]) + 50
+        pygame.draw.rect(screen, GRAY, (header_x, header_y - 10, column_widths[idx], 50))
+        screen.blit(header_text, (header_x + (column_widths[idx] - header_text.get_width()) // 2, header_y))
+
+    # Table Content
+    y_offset = 200
+    for index, score in enumerate(scores.items()):
+        rank_text = content_font.render(f"{index + 1}", True, BLACK)
+        name_text = content_font.render(f"{score[0]}", True, BLACK)
+        score_text = content_font.render(f"{score[1]}", True, BLACK)
+
+        screen.blit(rank_text, (50 + (column_widths[0] - rank_text.get_width()) // 2, y_offset))
+        screen.blit(name_text,
+                    (sum(column_widths[:1]) + 50 + (column_widths[1] - name_text.get_width()) // 2, y_offset))
+        screen.blit(score_text,
+                    (sum(column_widths[:2]) + 50 + (column_widths[2] - score_text.get_width()) // 2, y_offset))
+
+        y_offset += 50
+
+    pygame.display.update()
+
+def leaderboard():
+    pygame.init()
+    screen = pygame.display.set_mode((800, 600))
+    pygame.display.set_caption('Leaderboard')
+    font = pygame.font.Font(None, 36)
+
+    update_leaderboard()
+
+    file_in = open('leaderboard.json', 'r')
+    leaderboard = json.load(file_in)
+    file_in.close()
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # Hiển thị bảng xếp hạng
+        display_leaderboard(screen, leaderboard)
+
+        pygame.display.flip()
+
+    pygame.quit()
+
+def save_game(username, level, time_left, board):
+    database = open('user_data.json', 'r')
+    user_data = json.load(database)
+    database.close()
+
+    user_data[username]['level'] = level
+    user_data[username]['time'] = time_left
+    user_data[username]['board'] = board
+
+    database = open('user_data.json', 'w')
+    json.dump(user_data, database, indent=4)
+    database.close()
+
+def runGame(username, level, time_left, board):
     pygame.init()
     global GAMETIME, LEVEL, LIVES, TIMEBONUS, STARTTIME, LIVESFONT, BASICFONT
     FPSCLOCK = pygame.time.Clock()
@@ -425,7 +540,9 @@ def runGame(level, time_left, board):
 
         for event in pygame.event.get():
 
-            if event.type == QUIT: # if user quit the game, save it
+            if event.type == QUIT:
+                # if user quit the game, save it
+                save_game(username, level, GAMETIME + TIMEBONUS - time.time() + STARTTIME, mainBoard)
                 pygame.quit()
                 sys.exit()
             elif event.type == MOUSEMOTION:
@@ -444,7 +561,8 @@ def runGame(level, time_left, board):
 
                     if isGameComplete(mainBoard):
                         drawBoard(mainBoard, DISPLAYSURF)
-                        runGame(LEVEL + 1, None, None)
+                        save_game(username, level, GAMETIME + TIMEBONUS - time.time() + STARTTIME, mainBoard)
+                        runGame(username, LEVEL + 1, None, None)
 
                     if not(mainBoard[boxy1][boxx1] != 0 and bfs(mainBoard, boxy1, boxx1, boxy2, boxx2)):
                         hint = getHint(mainBoard)
@@ -487,7 +605,7 @@ def runGame(level, time_left, board):
 
                     if isGameComplete(mainBoard):
                         drawBoard(mainBoard, DISPLAYSURF)
-                        runGame(LEVEL + 1, None, None)
+                        runGame(username, LEVEL + 1, None, None)
                     if not(mainBoard[hint[0][0]][hint[0][1]] != 0 and bfs(mainBoard, hint[0][0], hint[0][1], hint[1][0], hint[1][1])):
                         hint = getHint(mainBoard)
                         while not hint:
@@ -507,7 +625,7 @@ def runGame(level, time_left, board):
         FPSCLOCK.tick(FPS)
 
     GAMETIME = 240
-    runGame(level + 1, None, None)
+    runGame(username, level + 1, None, None)
 
 def getRandomizedBoard():
     list_pokemons = list(range(1, len(HEROES_DICT) + 1))
