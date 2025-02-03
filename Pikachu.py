@@ -79,6 +79,7 @@ LIST_SOUNDEFFECT = os.listdir(PATH + '/sound_effect')
 for i in range(len(LIST_SOUNDEFFECT)):
     LIST_SOUNDEFFECT[i] = pygame.mixer.Sound('sound_effect/' + LIST_SOUNDEFFECT[i])
 
+
 def main():
     global FPSCLOCK, DISPLAYSURF, BASICFONT, LIVESFONT, LEVEL
     pygame.init()
@@ -326,6 +327,16 @@ def login(screen_width=800, screen_height=600):
                         time_left = user_data[username]['time']
                         board = user_data[username]['board']
                         pygame.quit()
+
+                        if level is None:
+                            global BOARDHEIGHT, BOARDWIDTH, NUMHEROES_ONBOARD, XMARGIN, YMARGIN
+                            BOARDHEIGHT, BOARDWIDTH = menu_setting()
+                            BOARDHEIGHT += 2
+                            BOARDWIDTH += 2
+                            NUMHEROES_ONBOARD = (BOARDHEIGHT - 2) * (BOARDWIDTH - 2) // NUMSAMEHEROES
+                            XMARGIN = (WINDOWWIDTH - (BOXSIZE * BOARDWIDTH)) // 2
+                            YMARGIN = (WINDOWHEIGHT - (BOXSIZE * BOARDHEIGHT)) // 2
+
                         runGame(username,level, time_left, board)
 
 
@@ -375,6 +386,136 @@ def login(screen_width=800, screen_height=600):
 
     pygame.quit()
 
+def menu_setting():
+    pygame.init()
+    man_hinh = pygame.display.set_mode((800, 500))
+    pygame.display.set_caption('Setting menu')
+
+    # Tải hình nền
+    hinh_nen = pygame.image.load('dota_background/0.jpg')
+    hinh_nen = pygame.transform.scale(hinh_nen, (800, 500))
+
+    # Sử dụng font chữ tùy chỉnh
+    font = pygame.font.Font(None, 32)
+    font_thong_bao = pygame.font.Font(None, 28)
+
+    # Màu sắc
+    mau_trang = (255, 255, 255)
+    mau_do = (255, 0, 0)
+    mau_xanh = (0, 255, 0)
+    mau_vang = (255, 255, 0)
+    mau_den = (0, 0, 0)
+
+    # Danh sách các lựa chọn cho từng thông số
+    thong_so_1 = ['4', '6', '8', '10']
+    thong_so_2 = ['8', '10', '12', '14']
+
+    # Tạo các nút cho từng thông số
+    nut_thong_so_1 = []
+    nut_thong_so_2 = []
+
+    # Tính toán vị trí cho các nút
+    so_luong_nut = len(thong_so_1)
+    khoang_cach = man_hinh.get_width() // (so_luong_nut + 1)
+
+    for i, ts in enumerate(thong_so_1):
+        rect = pygame.Rect(0, 0, 150, 50)
+        rect.center = (khoang_cach * (i + 1), 150)
+        nut_thong_so_1.append({'text': ts, 'rect': rect})
+
+    for i, ts in enumerate(thong_so_2):
+        rect = pygame.Rect(0, 0, 150, 50)
+        rect.center = (khoang_cach * (i + 1), 250)
+        nut_thong_so_2.append({'text': ts, 'rect': rect})
+
+    # Nút "Bắt Đầu Game"
+    rect_start = pygame.Rect(0, 0, 200, 60)
+    rect_start.center = (man_hinh.get_width() // 2, 400)
+    nut_bat_dau = {'text': 'Start playing', 'rect': rect_start}
+
+    thong_so_da_chon = {'Thông Số 1': None, 'Thông Số 2': None}
+    thong_bao = ''
+    chay = True
+    while chay:
+        for su_kien in pygame.event.get():
+            if su_kien.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif su_kien.type == pygame.MOUSEBUTTONDOWN:
+                vi_tri_chuot = su_kien.pos
+                # Kiểm tra các nút Thông Số 1
+                for nut in nut_thong_so_1:
+                    if nut['rect'].collidepoint(vi_tri_chuot):
+                        thong_so_da_chon['Thông Số 1'] = nut['text']
+                # Kiểm tra các nút Thông Số 2
+                for nut in nut_thong_so_2:
+                    if nut['rect'].collidepoint(vi_tri_chuot):
+                        thong_so_da_chon['Thông Số 2'] = nut['text']
+                # Kiểm tra nút "Bắt Đầu Game"
+                if nut_bat_dau['rect'].collidepoint(vi_tri_chuot):
+                    if thong_so_da_chon['Thông Số 1'] and thong_so_da_chon['Thông Số 2']:
+                        chay = False  # Thoát vòng lặp để bắt đầu game
+                    else:
+                        thong_bao = "Table's height or width haven't been chosen"
+
+        vi_tri_chuot = pygame.mouse.get_pos()
+
+        # Vẽ hình nền
+        man_hinh.blit(hinh_nen, (0, 0))
+
+        # Vẽ tiêu đề
+        tieu_de = font.render("Choose table's height and width", True, mau_vang)
+        rect_tieu_de = tieu_de.get_rect(center=(man_hinh.get_width() // 2, 50))
+        man_hinh.blit(tieu_de, rect_tieu_de)
+
+        # Vẽ thông báo nếu có
+        if thong_bao:
+            text_thong_bao = font_thong_bao.render(thong_bao, True, mau_do)
+            rect_thong_bao = text_thong_bao.get_rect(center=(man_hinh.get_width() // 2, 350))
+            man_hinh.blit(text_thong_bao, rect_thong_bao)
+
+        # Vẽ các nút Thông Số 1
+        for nut in nut_thong_so_1:
+            mau = mau_trang
+            if nut['rect'].collidepoint(vi_tri_chuot):
+                mau = mau_do
+            if thong_so_da_chon['Thông Số 1'] == nut['text']:
+                mau = mau_xanh
+            pygame.draw.rect(man_hinh, mau, nut['rect'])
+            pygame.draw.rect(man_hinh, mau_den, nut['rect'], 2)  # Viền đen
+            text_surf = font.render(nut['text'], True, mau_den)
+            text_rect = text_surf.get_rect(center=nut['rect'].center)
+            man_hinh.blit(text_surf, text_rect)
+
+        # Vẽ các nút Thông Số 2
+        for nut in nut_thong_so_2:
+            mau = mau_trang
+            if nut['rect'].collidepoint(vi_tri_chuot):
+                mau = mau_do
+            if thong_so_da_chon['Thông Số 2'] == nut['text']:
+                mau = mau_xanh
+            pygame.draw.rect(man_hinh, mau, nut['rect'])
+            pygame.draw.rect(man_hinh, mau_den, nut['rect'], 2)
+            text_surf = font.render(nut['text'], True, mau_den)
+            text_rect = text_surf.get_rect(center=nut['rect'].center)
+            man_hinh.blit(text_surf, text_rect)
+
+        # Vẽ nút "Bắt Đầu Game"
+        mau = mau_trang
+        if nut_bat_dau['rect'].collidepoint(vi_tri_chuot):
+            mau = mau_do
+        pygame.draw.rect(man_hinh, mau, nut_bat_dau['rect'])
+        pygame.draw.rect(man_hinh, mau_den, nut_bat_dau['rect'], 2)
+        text_surf = font.render(nut_bat_dau['text'], True, mau_den)
+        text_rect = text_surf.get_rect(center=nut_bat_dau['rect'].center)
+        man_hinh.blit(text_surf, text_rect)
+
+        pygame.display.flip()
+
+    pygame.quit()
+    return int(thong_so_da_chon['Thông Số 1']), int(thong_so_da_chon['Thông Số 2'])
+
+
 def score(username):
     database = open('user_data.json', 'r')
     user_data = json.load(database)
@@ -408,7 +549,6 @@ def update_leaderboard():
     update = open('leaderboard.json', 'w')
     json.dump(leaderboard, update, indent=4)
     update.close()
-
 
 def display_leaderboard(screen, scores):
     title_font = pygame.font.SysFont(None, 48)
@@ -495,14 +635,21 @@ def runGame(username, level, time_left, board):
     BASICFONT = pygame.font.SysFont('comicsansms', 70)
     LIVESFONT = pygame.font.SysFont('comicsansms', 45)
 
+
     if level is None: level = LEVEL = 1
-    elif level > 5: showGameOverScreen(DISPLAYSURF)
-    else: LEVEL = level
+    elif level > 5: leaderboard()
+    else:
+        LEVEL = level
 
     if board is None:
         mainBoard = getRandomizedBoard()
     else:
         mainBoard = board
+        global BOARDHEIGHT, BOARDWIDTH, NUMHEROES_ONBOARD, XMARGIN, YMARGIN
+        BOARDHEIGHT, BOARDWIDTH = len(board), len(board[0])
+        NUMHEROES_ONBOARD = (BOARDHEIGHT - 2) * (BOARDWIDTH - 2) // NUMSAMEHEROES
+        XMARGIN = (WINDOWWIDTH - (BOXSIZE * BOARDWIDTH)) // 2
+        YMARGIN = (WINDOWHEIGHT - (BOXSIZE * BOARDHEIGHT)) // 2
 
     if time_left is not None:
         GAMETIME = time_left
@@ -571,7 +718,7 @@ def runGame(username, level, time_left, board):
                             resetBoard(mainBoard)
                             LIVES += -1
                             if LIVES == 0:
-                                showGameOverScreen(DISPLAYSURF)
+                                leaderboard()
                             hint = getHint(mainBoard)
 
         boxx, boxy = getBoxAtPixel(mousex, mousey)
@@ -613,7 +760,7 @@ def runGame(username, level, time_left, board):
                             resetBoard(mainBoard)
                             LIVES += -1
                             if LIVES == 0:
-                                showGameOverScreen(DISPLAYSURF)
+                                leaderboard()
                             hint = getHint(mainBoard)
                 else:
                     clickSound.play()
@@ -905,6 +1052,5 @@ def drawLives(DISPLAYSURF):
 
 if __name__ == '__main__':
     showStartScreen()
-
 
 
